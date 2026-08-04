@@ -42,6 +42,10 @@ let package = Package(
                 "Services/PersistenceService.swift",
                 "Services/NotificationService.swift",
                 "Services/LoginItemService.swift",
+                "Services/DesignTokens.swift",
+                "Services/VisualEffectView.swift",
+                "Services/Color+Hex.swift",
+                "Widgets/SharedWidgetViews.swift",
             ],
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny"),

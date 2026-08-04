@@ -14,11 +14,15 @@ struct PomodoroWidgetView: View {
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
+    private var appearance: WidgetAppearance {
+        widgetInstance.decodeAppearance()
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: XuloraSpacing.md) {
             // Phase indicator
             Text(state?.currentPhase == .focus ? "专注" : "休息")
-                .font(.headline)
+                .font(XuloraTypography.componentTitle)
                 .foregroundStyle(state?.currentPhase == .focus ? .orange : .green)
 
             // Timer display
@@ -27,7 +31,7 @@ struct PomodoroWidgetView: View {
                 .monospacedDigit()
 
             // Controls
-            HStack(spacing: 16) {
+            HStack(spacing: XuloraSpacing.lg) {
                 Button {
                     toggleTimer()
                 } label: {
@@ -49,13 +53,12 @@ struct PomodoroWidgetView: View {
 
             // Session counter
             Text("25 分钟专注 · 5 分钟休息")
-                .font(.caption)
+                .font(XuloraTypography.secondary)
                 .foregroundStyle(.secondary)
         }
-        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(backgroundView)
-        .clipShape(RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius))
+        .widgetContentPadding()
+        .background(WidgetBackground(appearance: appearance))
         .onAppear {
             initializeState()
         }
@@ -63,16 +66,6 @@ struct PomodoroWidgetView: View {
             if isRunning {
                 updateTimer()
             }
-        }
-    }
-
-    @ViewBuilder
-    private var backgroundView: some View {
-        if let hex = widgetInstance.decodeAppearance().backgroundColorHex,
-           let color = Color(hex: hex) {
-            color.opacity(widgetInstance.decodeAppearance().alpha)
-        } else {
-            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
         }
     }
 

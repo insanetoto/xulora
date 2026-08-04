@@ -15,32 +15,27 @@ struct ClockWidgetView: View {
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
+    private var appearance: WidgetAppearance {
+        widgetInstance.decodeAppearance()
+    }
+
     var body: some View {
-        VStack(spacing: style == .large ? 12 : 4) {
+        VStack(spacing: style == .large ? XuloraSpacing.md : XuloraSpacing.xs) {
             Text(formattedTime)
-                .font(style == .large ? .system(size: 48, weight: .thin, design: .default) : .title)
+                .font(style == .large
+                    ? XuloraTypography.displayTime
+                    : XuloraTypography.componentTitle)
                 .monospacedDigit()
 
             Text(formattedDate)
-                .font(.body)
+                .font(XuloraTypography.body)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(16)
-        .background(backgroundView)
-        .clipShape(RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius))
+        .widgetContentPadding()
+        .background(WidgetBackground(appearance: appearance))
         .onReceive(timer) { date in
             currentDate = date
-        }
-    }
-
-    @ViewBuilder
-    private var backgroundView: some View {
-        if let hex = widgetInstance.decodeAppearance().backgroundColorHex,
-           let color = Color(hex: hex) {
-            color.opacity(widgetInstance.decodeAppearance().alpha)
-        } else {
-            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
         }
     }
 

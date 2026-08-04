@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// Displays the contents of a bound real folder as a desktop widget.
 struct FileWidgetView: View {
@@ -9,16 +8,14 @@ struct FileWidgetView: View {
     @State private var fileURLs: [URL] = []
     @State private var isLoading = false
 
+    private var appearance: WidgetAppearance {
+        widgetInstance.decodeAppearance()
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack {
-                Text(widgetInstance.title)
-                    .font(.headline)
-                    .lineLimit(1)
-
-                Spacer()
-
+            WidgetTitleBar(title: widgetInstance.title) {
                 Button {
                     openBoundFolder()
                 } label: {
@@ -27,9 +24,6 @@ struct FileWidgetView: View {
                 .buttonStyle(.plain)
                 .help("在 Finder 中打开文件夹")
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
 
             Divider()
 
@@ -46,15 +40,14 @@ struct FileWidgetView: View {
             // Footer status
             HStack {
                 Text("\(fileURLs.count) 个项目")
-                    .font(.caption)
+                    .font(XuloraTypography.secondary)
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.horizontal, XuloraSpacing.xxl)
+            .padding(.vertical, XuloraSpacing.sm)
         }
-        .background(backgroundView)
-        .clipShape(RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius))
+        .background(WidgetBackground(appearance: appearance))
         .onAppear {
             loadConfiguration()
         }
@@ -63,16 +56,16 @@ struct FileWidgetView: View {
     // MARK: Subviews
 
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: XuloraSpacing.md) {
             Image(systemName: "tray")
                 .font(.system(size: 32))
                 .foregroundStyle(.secondary)
             Text("拖入文件以整理")
-                .font(.body)
+                .font(XuloraTypography.body)
                 .foregroundStyle(.secondary)
             if config.bookmarkData == nil {
                 Text("请先绑定文件夹")
-                    .font(.caption)
+                    .font(XuloraTypography.secondary)
                     .foregroundStyle(.tertiary)
                 Button("选择文件夹") {
                     selectFolder()
@@ -82,6 +75,7 @@ struct FileWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .widgetContentPadding()
     }
 
     private var fileListView: some View {
@@ -112,16 +106,6 @@ struct FileWidgetView: View {
             }
         }
         .listStyle(.plain)
-    }
-
-    @ViewBuilder
-    private var backgroundView: some View {
-        if let hex = widgetInstance.decodeAppearance().backgroundColorHex,
-           let color = Color(hex: hex) {
-            color.opacity(widgetInstance.decodeAppearance().alpha)
-        } else {
-            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
-        }
     }
 
     // MARK: Actions
@@ -168,53 +152,5 @@ struct FileWidgetView: View {
 
     private func selectFolder() {
         // Stub: will use NSOpenPanel in FileOperationService
-    }
-}
-
-// MARK: - VisualEffectView (NSViewRepresentable)
-
-struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
-    }
-}
-
-// MARK: - Color Extensions
-
-extension Color {
-    init?(hex: String) {
-        guard hex.hasPrefix("#") else { return nil }
-        let hexString = String(hex.dropFirst())
-        var int: UInt64 = 0
-        guard Scanner(string: hexString).scanHexInt64(&int) else { return nil }
-
-        let r, g, b, a: Double
-        switch hexString.count {
-        case 6:
-            r = Double((int >> 16) & 0xFF) / 255
-            g = Double((int >> 8) & 0xFF) / 255
-            b = Double(int & 0xFF) / 255
-            a = 1.0
-        case 8:
-            r = Double((int >> 24) & 0xFF) / 255
-            g = Double((int >> 16) & 0xFF) / 255
-            b = Double((int >> 8) & 0xFF) / 255
-            a = Double(int & 0xFF) / 255
-        default:
-            return nil
-        }
-        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
     }
 }

@@ -8,7 +8,7 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("桌序")
+            Text("桌序 Xulora")
 
             Divider()
 

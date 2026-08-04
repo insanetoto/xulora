@@ -38,23 +38,23 @@ final class WidgetManager {
     // MARK: Factory methods
 
     func addFileWidget(title: String = "文件整理") {
-        addWidget(kind: .file, title: title, defaultSize: (360, 400))
+        addWidget(kind: .file, title: title, defaultSize: (480, 360))
     }
 
     func addNoteWidget(title: String = "便签") {
-        addWidget(kind: .note, title: title, defaultSize: (300, 300))
+        addWidget(kind: .note, title: title, defaultSize: (320, 192))
     }
 
     func addTodoWidget(title: String = "待办") {
-        addWidget(kind: .todo, title: title, defaultSize: (280, 350))
+        addWidget(kind: .todo, title: title, defaultSize: (350, 236))
     }
 
     func addClockWidget(title: String = "时钟") {
-        addWidget(kind: .clock, title: title, defaultSize: (220, 160))
+        addWidget(kind: .clock, title: title, defaultSize: (350, 160))
     }
 
     func addPomodoroWidget(title: String = "番茄钟") {
-        addWidget(kind: .pomodoro, title: title, defaultSize: (220, 220))
+        addWidget(kind: .pomodoro, title: title, defaultSize: (350, 236))
     }
 
     // MARK: Management

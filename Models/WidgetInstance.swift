@@ -13,7 +13,7 @@ enum WidgetKind: String, Codable, CaseIterable {
 /// Appearance configuration shared across all widget types.
 struct WidgetAppearance: Codable, Equatable {
     var backgroundColorHex: String? = nil
-    var cornerRadius: Double = 16
+    var cornerRadius: Double = XuloraRadius.widget
     var alpha: Double = 0.95
     var spacing: WidgetSpacing = .standard
     var appearanceMode: AppearanceMode = .system

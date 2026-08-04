@@ -7,37 +7,30 @@ struct NoteWidgetView: View {
     @State private var title: String = ""
     @State private var bodyText: String = ""
 
+    private var appearance: WidgetAppearance {
+        widgetInstance.decodeAppearance()
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: XuloraSpacing.sm) {
             TextField("标题", text: $title)
-                .font(.headline)
+                .font(XuloraTypography.componentTitle)
                 .textFieldStyle(.plain)
 
             Divider()
 
             TextEditor(text: $bodyText)
-                .font(.body)
+                .font(XuloraTypography.body)
                 .scrollContentBackground(.hidden)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(12)
-        .background(backgroundView)
-        .clipShape(RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius))
+        .widgetContentPadding()
+        .background(WidgetBackground(appearance: appearance))
         .onAppear {
             loadContent()
         }
         .onChange(of: bodyText) { _, _ in saveContent() }
         .onChange(of: title) { _, _ in saveContent() }
-    }
-
-    @ViewBuilder
-    private var backgroundView: some View {
-        if let hex = widgetInstance.decodeAppearance().backgroundColorHex,
-           let color = Color(hex: hex) {
-            color.opacity(widgetInstance.decodeAppearance().alpha)
-        } else {
-            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
-        }
     }
 
     private func loadContent() {

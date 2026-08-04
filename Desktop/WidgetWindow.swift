@@ -183,7 +183,13 @@ struct WidgetContainerView: View {
 
     var body: some View {
         contentView
-            .overlay(editBorder)
+            .clipShape(RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius))
+            .overlay(
+                WidgetBorderOverlay(
+                    cornerRadius: widgetInstance.decodeAppearance().cornerRadius,
+                    isEditing: editState.isEditing
+                )
+            )
             .contextMenu {
                 if editState.isEditing {
                     Button("复制") { onDuplicate?() }
@@ -213,12 +219,4 @@ struct WidgetContainerView: View {
         }
     }
 
-    @ViewBuilder
-    private var editBorder: some View {
-        if editState.isEditing {
-            RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius + 2)
-                .stroke(Color.accentColor, lineWidth: 2)
-                .allowsHitTesting(false)
-        }
-    }
 }

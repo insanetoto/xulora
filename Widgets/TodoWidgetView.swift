@@ -8,6 +8,10 @@ struct TodoWidgetView: View {
     @State private var newTaskTitle: String = ""
     @State private var showCompleted: Bool = true
 
+    private var appearance: WidgetAppearance {
+        widgetInstance.decodeAppearance()
+    }
+
     private var visibleItems: [TodoItem] {
         showCompleted ? items : items.filter { !$0.isCompleted }
     }
@@ -15,10 +19,7 @@ struct TodoWidgetView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack {
-                Text(widgetInstance.title)
-                    .font(.headline)
-                Spacer()
+            WidgetTitleBar(title: widgetInstance.title) {
                 Menu {
                     Toggle("显示已完成", isOn: $showCompleted)
                     Button("清除已完成", role: .destructive) {
@@ -29,8 +30,6 @@ struct TodoWidgetView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
 
             // Add new task
             HStack {
@@ -48,8 +47,8 @@ struct TodoWidgetView: View {
                 .buttonStyle(.plain)
                 .disabled(newTaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.horizontal, XuloraSpacing.xxl)
+            .padding(.vertical, XuloraSpacing.sm)
 
             Divider()
 
@@ -81,18 +80,7 @@ struct TodoWidgetView: View {
             }
             .listStyle(.plain)
         }
-        .background(backgroundView)
-        .clipShape(RoundedRectangle(cornerRadius: widgetInstance.decodeAppearance().cornerRadius))
-    }
-
-    @ViewBuilder
-    private var backgroundView: some View {
-        if let hex = widgetInstance.decodeAppearance().backgroundColorHex,
-           let color = Color(hex: hex) {
-            color.opacity(widgetInstance.decodeAppearance().alpha)
-        } else {
-            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
-        }
+        .background(WidgetBackground(appearance: appearance))
     }
 
     // MARK: Actions
