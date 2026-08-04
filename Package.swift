@@ -14,6 +14,7 @@ let package = Package(
                 "Resources",
                 "Tests",
                 "CLAUDE.md",
+                "README.md",
                 "Xulora-产品说明.md",
             ],
             sources: [
