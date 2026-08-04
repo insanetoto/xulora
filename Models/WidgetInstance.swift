@@ -6,8 +6,7 @@ enum WidgetKind: String, Codable, CaseIterable {
     case file = "file"
     case note = "note"
     case todo = "todo"
-    case clock = "clock"
-    case pomodoro = "pomodoro"
+    case calculator = "calculator"
 }
 
 /// Appearance configuration shared across all widget types.
@@ -58,7 +57,7 @@ final class WidgetInstance {
         frameWidth: Double = 320,
         frameHeight: Double = 400,
         screenID: String? = nil,
-        isLocked: Bool = true,
+        isLocked: Bool = false,
         appearance: WidgetAppearance = WidgetAppearance(),
         configuration: Data = Data(),
         sortOrder: Int = 0

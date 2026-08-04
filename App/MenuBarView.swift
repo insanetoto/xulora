@@ -25,12 +25,8 @@ struct MenuBarView: View {
                 widgetManager.addTodoWidget()
             }
 
-            Button("添加时钟") {
-                widgetManager.addClockWidget()
-            }
-
-            Button("添加番茄钟") {
-                widgetManager.addPomodoroWidget()
+            Button("添加计算器") {
+                widgetManager.addCalculatorWidget()
             }
 
             Divider()

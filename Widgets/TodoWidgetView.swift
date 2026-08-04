@@ -1,19 +1,23 @@
 import SwiftUI
+@preconcurrency import EventKit
 
-/// Todo list widget — add, complete, reorder, delete tasks.
+/// System Reminders widget — displays and manages macOS Reminders app tasks.
 struct TodoWidgetView: View {
     let widgetInstance: WidgetInstance
 
-    @State private var items: [TodoItem] = []
+    @State private var reminders: [EKReminder] = []
     @State private var newTaskTitle: String = ""
     @State private var showCompleted: Bool = true
+    @State private var needsAuth: Bool = false
+
+    private let store = EKEventStore()
 
     private var appearance: WidgetAppearance {
         widgetInstance.decodeAppearance()
     }
 
-    private var visibleItems: [TodoItem] {
-        showCompleted ? items : items.filter { !$0.isCompleted }
+    private var visibleReminders: [EKReminder] {
+        showCompleted ? reminders : reminders.filter { !$0.isCompleted }
     }
 
     var body: some View {
@@ -22,9 +26,6 @@ struct TodoWidgetView: View {
             WidgetTitleBar(title: widgetInstance.title) {
                 Menu {
                     Toggle("显示已完成", isOn: $showCompleted)
-                    Button("清除已完成", role: .destructive) {
-                        clearCompleted()
-                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -33,15 +34,11 @@ struct TodoWidgetView: View {
 
             // Add new task
             HStack {
-                TextField("添加任务", text: $newTaskTitle)
+                TextField("添加提醒事项", text: $newTaskTitle)
                     .textFieldStyle(.plain)
-                    .onSubmit {
-                        addTask()
-                    }
+                    .onSubmit { addReminder() }
 
-                Button {
-                    addTask()
-                } label: {
+                Button { addReminder() } label: {
                     Image(systemName: "plus.circle.fill")
                 }
                 .buttonStyle(.plain)
@@ -52,67 +49,149 @@ struct TodoWidgetView: View {
 
             Divider()
 
-            // Task list
-            List {
-                ForEach(visibleItems) { item in
-                    HStack {
-                        Button {
-                            withAnimation {
-                                item.toggle()
-                            }
-                        } label: {
-                            Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(item.isCompleted ? .green : .secondary)
-                        }
-                        .buttonStyle(.plain)
-
-                        Text(item.title)
-                            .strikethrough(item.isCompleted)
-                            .foregroundStyle(item.isCompleted ? .secondary : .primary)
-                            .lineLimit(2)
-
-                        Spacer()
+            // Reminder list
+            if needsAuth {
+                authRequestView
+            } else if visibleReminders.isEmpty {
+                emptyView
+            } else {
+                List {
+                    ForEach(visibleReminders, id: \.calendarItemIdentifier) { reminder in
+                        reminderRow(reminder)
                     }
-                    .contentShape(Rectangle())
                 }
-                .onDelete(perform: deleteTasks)
-                .onMove(perform: moveTasks)
+                .listStyle(.plain)
             }
-            .listStyle(.plain)
         }
         .background(WidgetBackground(appearance: appearance))
+        .task {
+            requestAccess()
+        }
     }
 
-    // MARK: Actions
+    // MARK: Subviews
 
-    private func addTask() {
+    private func reminderRow(_ reminder: EKReminder) -> some View {
+        HStack {
+            Button {
+                toggleReminder(reminder)
+            } label: {
+                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(reminder.isCompleted ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+
+            Text(reminder.title)
+                .strikethrough(reminder.isCompleted)
+                .foregroundStyle(reminder.isCompleted ? .secondary : .primary)
+                .lineLimit(2)
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var emptyView: some View {
+        VStack(spacing: XuloraSpacing.md) {
+            Image(systemName: "checklist")
+                .font(.system(size: 28))
+                .foregroundStyle(.secondary)
+            Text("没有提醒事项")
+                .font(XuloraTypography.body)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .widgetContentPadding()
+    }
+
+    private var authRequestView: some View {
+        VStack(spacing: XuloraSpacing.md) {
+            Image(systemName: "exclamationmark.shield")
+                .font(.system(size: 28))
+                .foregroundStyle(.secondary)
+            Text("需要访问提醒事项")
+                .font(XuloraTypography.body)
+                .foregroundStyle(.secondary)
+            Button("授权访问") {
+                Task { await requestFullAccess() }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .widgetContentPadding()
+    }
+
+    // MARK: EventKit
+
+    private func requestAccess() {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        switch status {
+        case .fullAccess, .writeOnly:
+            needsAuth = false
+            loadReminders()
+        case .notDetermined:
+            needsAuth = true
+        case .denied, .restricted:
+            needsAuth = true
+        @unknown default:
+            needsAuth = true
+        }
+    }
+
+    private func requestFullAccess() async {
+        do {
+            let granted = try await store.requestFullAccessToReminders()
+            needsAuth = !granted
+            if granted {
+                loadReminders()
+            }
+        } catch {
+            needsAuth = true
+        }
+    }
+
+    private func loadReminders() {
+        let predicate = store.predicateForIncompleteReminders(
+            withDueDateStarting: nil,
+            ending: nil,
+            calendars: nil
+        )
+
+        store.fetchReminders(matching: predicate) { fetched in
+            Task { @MainActor in
+                self.reminders = fetched ?? []
+            }
+        }
+    }
+
+    private func addReminder() {
         let trimmed = newTaskTitle.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
 
-        let item = TodoItem(
-            widgetID: widgetInstance.id,
-            title: trimmed,
-            sortOrder: items.count
-        )
-        items.append(item)
-        newTaskTitle = ""
-    }
+        let reminder = EKReminder(eventStore: store)
+        reminder.title = trimmed
+        reminder.calendar = store.defaultCalendarForNewReminders()
 
-    private func deleteTasks(at offsets: IndexSet) {
-        let ids = offsets.map { visibleItems[$0].id }
-        items.removeAll { ids.contains($0.id) }
-    }
-
-    private func moveTasks(from source: IndexSet, to destination: Int) {
-        var visible = visibleItems
-        visible.move(fromOffsets: source, toOffset: destination)
-        // Reassign sort orders
-        for (index, item) in visible.enumerated() {
-            item.sortOrder = index
+        do {
+            try store.save(reminder, commit: true)
+            reminders.append(reminder)
+            newTaskTitle = ""
+        } catch {
+            // Silently fail for now
         }
     }
 
-    private func clearCompleted() {
-        items.removeAll { $0.isCompleted }
+    private func toggleReminder(_ reminder: EKReminder) {
+        reminder.isCompleted.toggle()
+        do {
+            try store.save(reminder, commit: true)
+            withAnimation {
+                // Trigger view refresh
+                reminders = reminders.map { $0 }
+            }
+        } catch {
+            reminder.isCompleted.toggle()
+        }
     }
 }

@@ -16,9 +16,6 @@ final class PersistenceService {
         // Explicit schema definition ensures clean migration paths
         let schema = Schema([
             WidgetInstance.self,
-            TodoItem.self,
-            NoteRecord.self,
-            PomodoroState.self,
         ])
 
         let config = ModelConfiguration(

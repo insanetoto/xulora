@@ -30,7 +30,10 @@ final class WidgetManager {
         for widget in restored {
             createWindow(for: widget)
         }
-        if !restored.isEmpty {
+        if restored.isEmpty {
+            firstLaunchLayout()
+            logger.info("First launch: created \(self.widgets.count) default widget(s)")
+        } else {
             logger.info("Restored \(restored.count) widget(s) from persistence")
         }
     }
@@ -49,12 +52,8 @@ final class WidgetManager {
         addWidget(kind: .todo, title: title, defaultSize: (350, 236))
     }
 
-    func addClockWidget(title: String = "时钟") {
-        addWidget(kind: .clock, title: title, defaultSize: (350, 160))
-    }
-
-    func addPomodoroWidget(title: String = "番茄钟") {
-        addWidget(kind: .pomodoro, title: title, defaultSize: (350, 236))
+    func addCalculatorWidget(title: String = "计算器") {
+        addWidget(kind: .calculator, title: title, defaultSize: (260, 320))
     }
 
     // MARK: Management
@@ -130,6 +129,63 @@ final class WidgetManager {
             window.setMovable(editing)
             window.setEditingMode(editing)
         }
+    }
+
+    // MARK: First Launch Layout
+
+    /// Create default widgets arranged in a 3-column grid filling the primary screen.
+    private func firstLaunchLayout() {
+        guard let screen = NSScreen.main else { return }
+        let frame = screen.visibleFrame
+        let margin: CGFloat = 64
+        let gap: CGFloat = 24
+
+        // 3-column grid: evenly divide available width
+        let columnCount: CGFloat = 3
+        let availableWidth = frame.width - 2 * margin - (columnCount - 1) * gap
+        let colWidth = availableWidth / columnCount
+        let colOrigins: [CGFloat] = (0..<Int(columnCount)).map { i in
+            frame.minX + margin + CGFloat(i) * (colWidth + gap)
+        }
+
+        // Row 0 tallest height (File widget = 360)
+        let row0Height: CGFloat = 360
+        let row0Top = margin
+        let row1Top = row0Top + row0Height + gap
+
+        // (kind, title, width, height, col, row)
+        let placements: [(WidgetKind, String, CGFloat, CGFloat, Int, Int)] = [
+            (.file,       "文件整理", 480, 360, 0, 0),
+            (.note,       "便签",     320, 192, 1, 0),
+            (.todo,       "待办",     350, 236, 2, 0),
+            (.calculator, "计算器",   260, 320, 1, 1),
+        ]
+
+        for (index, (kind, title, width, height, col, row)) in placements.enumerated() {
+            let x = colOrigins[col] + (colWidth - width) / 2
+            let topY = row == 0 ? row0Top : row1Top
+            let y = frame.maxY - topY - height
+
+            do {
+                let widget = try WidgetInstance(
+                    kind: kind,
+                    title: title,
+                    frameX: x,
+                    frameY: y,
+                    frameWidth: width,
+                    frameHeight: height,
+                    isLocked: false,
+                    sortOrder: index
+                )
+                persistence.insertWidget(widget)
+                widgets.append(widget)
+                createWindow(for: widget)
+            } catch {
+                logger.error("Failed to create default widget '\(title)': \(error.localizedDescription)")
+            }
+        }
+
+        persistence.save()
     }
 
     // MARK: Internal

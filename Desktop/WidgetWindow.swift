@@ -54,7 +54,7 @@ final class WidgetWindow {
 
         nsWindow = NSWindow(
             contentRect: rect,
-            styleMask: [.borderless, .fullSizeContentView],
+            styleMask: [.borderless, .fullSizeContentView, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -81,6 +81,7 @@ final class WidgetWindow {
         nsWindow.setContentSize(
             NSSize(width: widgetInstance.frameWidth, height: widgetInstance.frameHeight)
         )
+        nsWindow.minSize = NSSize(width: 200, height: 120)
     }
 
     private func setContent() {
@@ -209,10 +210,8 @@ struct WidgetContainerView: View {
                 NoteWidgetView(widgetInstance: widgetInstance)
             case .todo:
                 TodoWidgetView(widgetInstance: widgetInstance)
-            case .clock:
-                ClockWidgetView(widgetInstance: widgetInstance)
-            case .pomodoro:
-                PomodoroWidgetView(widgetInstance: widgetInstance)
+            case .calculator:
+                CalculatorWidgetView(widgetInstance: widgetInstance)
             case .none:
                 EmptyView()
             }
