@@ -6,6 +6,9 @@ private let logger = Logger(subsystem: "com.nuochong.xulora", category: "Lifecyc
 /// Observes app lifecycle events: launch, sleep, wake, terminate.
 @MainActor
 enum AppLifecycle {
+    /// Called when the app is about to terminate. Set before calling setup().
+    nonisolated(unsafe) static var onTerminate: (() -> Void)?
+
     static func setup() {
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -13,6 +16,7 @@ enum AppLifecycle {
             queue: .main
         ) { _ in
             logger.info("Application will terminate — saving state")
+            onTerminate?()
         }
 
         NotificationCenter.default.addObserver(

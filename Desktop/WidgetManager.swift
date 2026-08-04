@@ -9,6 +9,8 @@ private let logger = Logger(subsystem: "com.nuochong.xulora", category: "WidgetM
 @MainActor
 @Observable
 final class WidgetManager {
+    private let persistence = PersistenceService.shared
+
     private(set) var widgets: [WidgetInstance] = []
     private var widgetWindows: [UUID: WidgetWindow] = [:]
 
@@ -18,6 +20,19 @@ final class WidgetManager {
 
     var areAllVisible: Bool {
         widgetWindows.values.allSatisfy { $0.isVisible }
+    }
+
+    // MARK: Init — restore persisted widgets
+
+    init() {
+        let restored = persistence.fetchAllWidgets()
+        widgets = restored
+        for widget in restored {
+            createWindow(for: widget)
+        }
+        if !restored.isEmpty {
+            logger.info("Restored \(restored.count) widget(s) from persistence")
+        }
     }
 
     // MARK: Factory methods
@@ -45,9 +60,11 @@ final class WidgetManager {
     // MARK: Management
 
     func deleteWidget(_ id: UUID) {
+        guard let widget = widgets.first(where: { $0.id == id }) else { return }
         widgetWindows[id]?.close()
         widgetWindows.removeValue(forKey: id)
         widgets.removeAll { $0.id == id }
+        persistence.deleteWidget(widget)
     }
 
     func duplicateWidget(_ id: UUID) {
@@ -71,6 +88,7 @@ final class WidgetManager {
                 configuration: original.configurationData,
                 sortOrder: widgets.count
             )
+            persistence.insertWidget(copy)
             widgets.append(copy)
             createWindow(for: copy)
         } catch {
@@ -82,6 +100,7 @@ final class WidgetManager {
         for widget in widgets {
             widget.isLocked = locked
         }
+        persistence.save()
     }
 
     func setAllVisible(_ visible: Bool) {
@@ -91,6 +110,25 @@ final class WidgetManager {
             } else {
                 window.hide()
             }
+        }
+    }
+
+    /// Update persisted frame for a widget and save.
+    func updateWidgetFrame(id: UUID, x: Double, y: Double, width: Double, height: Double) {
+        guard let widget = widgets.first(where: { $0.id == id }) else { return }
+        widget.frameX = x
+        widget.frameY = y
+        widget.frameWidth = width
+        widget.frameHeight = height
+        widget.updatedAt = Date()
+        persistence.save()
+    }
+
+    /// Toggle edit mode for all widget windows.
+    func setEditingMode(_ editing: Bool) {
+        for (_, window) in widgetWindows {
+            window.setMovable(editing)
+            window.setEditingMode(editing)
         }
     }
 
@@ -107,6 +145,7 @@ final class WidgetManager {
                 frameHeight: Double(defaultSize.1),
                 sortOrder: widgets.count
             )
+            persistence.insertWidget(widget)
             widgets.append(widget)
             createWindow(for: widget)
         } catch {
@@ -117,6 +156,26 @@ final class WidgetManager {
     private func createWindow(for widget: WidgetInstance) {
         let window = WidgetWindow(widgetInstance: widget)
         widgetWindows[widget.id] = window
+
+        // Sync frame changes back to persistence
+        window.onFrameChange = { [weak self] id, frame in
+            self?.updateWidgetFrame(
+                id: id,
+                x: frame.origin.x,
+                y: frame.origin.y,
+                width: frame.size.width,
+                height: frame.size.height
+            )
+        }
+
+        window.onDelete = { [weak self] id in
+            self?.deleteWidget(id)
+        }
+
+        window.onDuplicate = { [weak self] id in
+            self?.duplicateWidget(id)
+        }
+
         window.show()
     }
 }

@@ -37,7 +37,7 @@ struct MenuBarView: View {
 
             Toggle("编辑布局", isOn: $isEditingLayout)
                 .onChange(of: isEditingLayout) { _, newValue in
-                    layoutController.setEditingMode(newValue)
+                    layoutController.setEditingMode(newValue, widgetManager: widgetManager)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
 

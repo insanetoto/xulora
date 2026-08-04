@@ -10,9 +10,10 @@ private let logger = Logger(subsystem: "com.nuochong.xulora", category: "Layout"
 final class LayoutController {
     private(set) var isEditing = false
 
-    /// Toggle layout editing mode for all widget windows.
-    func setEditingMode(_ editing: Bool) {
+    /// Toggle layout editing mode for all widget windows via the WidgetManager.
+    func setEditingMode(_ editing: Bool, widgetManager: WidgetManager) {
         isEditing = editing
+        widgetManager.setEditingMode(editing)
         logger.info("Layout editing mode: \(editing)")
     }
 
