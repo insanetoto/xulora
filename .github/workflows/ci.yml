@@ -26,3 +26,49 @@ jobs:
 
       - name: Test
         run: swift test -v
+
+  build-app:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build .app bundle
+        run: bash Scripts/build-app.sh release
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Xulora.app
+          path: .build/app/release/Xulora.app
+          retention-days: 7
+
+  # ============================================================
+  # Release workflow — triggers on version tags (v*)
+  # ============================================================
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-and-test, build-app]
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build .app bundle
+        run: bash Scripts/build-app.sh release
+
+      - name: Rename ZIP for release
+        run: |
+          cd .build/app/release
+          mv Xulora-*.zip "Xulora-${{ github.ref_name }}-release.zip"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: .build/app/release/Xulora-${{ github.ref_name }}-release.zip
+          prerelease: true
+          generate_release_notes: true

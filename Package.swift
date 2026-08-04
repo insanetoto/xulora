@@ -13,6 +13,7 @@ let package = Package(
             exclude: [
                 "Resources",
                 "Tests",
+                "Scripts",
                 "CLAUDE.md",
                 "README.md",
                 "Xulora-产品说明.md",
