@@ -152,11 +152,8 @@ struct TodoWidgetView: View {
     }
 
     private func loadReminders() {
-        let predicate = store.predicateForIncompleteReminders(
-            withDueDateStarting: nil,
-            ending: nil,
-            calendars: nil
-        )
+        let calendars = store.calendars(for: .reminder)
+        let predicate = store.predicateForReminders(in: calendars)
 
         store.fetchReminders(matching: predicate) { fetched in
             Task { @MainActor in
