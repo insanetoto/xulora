@@ -27,6 +27,7 @@ let package = Package(
                 "App/AppLifecycle.swift",
                 "Desktop/WidgetManager.swift",
                 "Desktop/WidgetWindow.swift",
+                "Desktop/SnapGuide.swift",
                 "Desktop/LayoutController.swift",
                 "Models/WidgetInstance.swift",
                 "Models/FileWidgetConfiguration.swift",

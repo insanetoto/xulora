@@ -14,6 +14,9 @@ final class WidgetManager {
     private(set) var widgets: [WidgetInstance] = []
     private var widgetWindows: [UUID: WidgetWindow] = [:]
 
+    /// Snap guide controller for grid snapping and alignment guides.
+    private let snapGuide = SnapGuideController()
+
     var areAllLocked: Bool {
         widgets.allSatisfy(\.isLocked)
     }
@@ -36,6 +39,8 @@ final class WidgetManager {
         } else {
             logger.info("Restored \(restored.count) widget(s) from persistence")
         }
+        // Populate snap guide with initial widget frames
+        refreshSnapGuide()
     }
 
     // MARK: Factory methods
@@ -64,6 +69,7 @@ final class WidgetManager {
         widgetWindows.removeValue(forKey: id)
         widgets.removeAll { $0.id == id }
         persistence.deleteWidget(widget)
+        snapGuide.removeFrame(for: id)
     }
 
     func duplicateWidget(_ id: UUID) {
@@ -121,6 +127,12 @@ final class WidgetManager {
         widget.frameHeight = height
         widget.updatedAt = Date()
         persistence.save()
+
+        // Keep snap guide aligned with reality
+        snapGuide.setFrame(
+            NSRect(x: x, y: y, width: width, height: height),
+            for: id
+        )
     }
 
     /// Toggle edit mode for all widget windows.
@@ -210,7 +222,7 @@ final class WidgetManager {
     }
 
     private func createWindow(for widget: WidgetInstance) {
-        let window = WidgetWindow(widgetInstance: widget)
+        let window = WidgetWindow(widgetInstance: widget, snapController: snapGuide)
         widgetWindows[widget.id] = window
 
         // Sync frame changes back to persistence
@@ -233,5 +245,20 @@ final class WidgetManager {
         }
 
         window.show()
+    }
+
+    /// Rebuild all partner frames in the snap guide controller.
+    private func refreshSnapGuide() {
+        for widget in widgets {
+            snapGuide.setFrame(
+                NSRect(
+                    x: widget.frameX,
+                    y: widget.frameY,
+                    width: widget.frameWidth,
+                    height: widget.frameHeight
+                ),
+                for: widget.id
+            )
+        }
     }
 }

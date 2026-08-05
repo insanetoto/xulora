@@ -22,7 +22,7 @@ final class WidgetWindow {
     /// Ensures widgets sit above desktop icons but below normal application windows.
     static let desktopWidgetLevel = NSWindow.Level(rawValue: -999)
 
-    private let nsWindow: NSWindow
+    private let nsWindow: SnappableWindow
     let widgetInstance: WidgetInstance
     let editState = EditState()
 
@@ -42,7 +42,7 @@ final class WidgetWindow {
 
     // MARK: Init
 
-    init(widgetInstance: WidgetInstance) {
+    init(widgetInstance: WidgetInstance, snapController: SnapGuideController? = nil) {
         self.widgetInstance = widgetInstance
 
         let rect = NSRect(
@@ -52,12 +52,14 @@ final class WidgetWindow {
             height: widgetInstance.frameHeight
         )
 
-        nsWindow = NSWindow(
+        nsWindow = SnappableWindow(
             contentRect: rect,
             styleMask: [.borderless, .fullSizeContentView, .resizable],
             backing: .buffered,
             defer: false
         )
+        nsWindow.snapController = snapController
+        nsWindow.widgetID = widgetInstance.id
 
         configureWindow()
         setContent()
