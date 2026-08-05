@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import QuickLookThumbnailing
 import OSLog
 
 private let logger = Logger(subsystem: "com.nuochong.xulora", category: "FileWidget")
@@ -15,6 +16,8 @@ struct FileWidgetView: View {
     @State private var isLoading = false
     @State private var isDropTarget = false
     @State private var dropModifier: DragModifier = .move
+    @State private var displayMode: FileDisplayMode = .grid
+    @State private var sortMode: FileSortMode = .modificationDateDescending
 
     private var appearance: WidgetAppearance {
         widgetInstance.decodeAppearance()
@@ -31,17 +34,60 @@ struct FileWidgetView: View {
         )
     }
 
+    /// Sorted file URLs based on current sort mode.
+    private var sortedFileURLs: [URL] {
+        switch sortMode {
+        case .nameAscending:
+            return fileURLs.sorted {
+                $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+            }
+        case .modificationDateDescending:
+            return fileURLs.sorted {
+                let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                return a > b
+            }
+        case .kind:
+            return fileURLs.sorted {
+                let extA = $0.pathExtension
+                let extB = $1.pathExtension
+                if extA == extB {
+                    return $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+                }
+                return extA.localizedStandardCompare(extB) == .orderedAscending
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             WidgetTitleBar(title: widgetInstance.title) {
-                Button {
-                    openBoundFolder()
-                } label: {
-                    Image(systemName: "folder")
+                HStack(spacing: XuloraSpacing.sm) {
+                    Button {
+                        toggleDisplayMode()
+                    } label: {
+                        Image(systemName: displayMode == .grid ? "list.bullet" : "square.grid.2x2")
+                    }
+                    .buttonStyle(.plain)
+                    .help(displayMode == .grid ? "切换为列表视图" : "切换为网格视图")
+
+                    Menu {
+                        sortModeMenu
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .buttonStyle(.plain)
+                    .help("排序方式")
+
+                    Button {
+                        openBoundFolder()
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                    .buttonStyle(.plain)
+                    .help("在 Finder 中打开文件夹")
                 }
-                .buttonStyle(.plain)
-                .help("在 Finder 中打开文件夹")
             }
 
             Divider()
@@ -52,6 +98,8 @@ struct FileWidgetView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if fileURLs.isEmpty {
                 emptyStateView
+            } else if displayMode == .grid {
+                fileGridView
             } else {
                 fileListView
             }
@@ -83,6 +131,42 @@ struct FileWidgetView: View {
         }
         .onDisappear {
             stopObserving()
+        }
+    }
+
+    // MARK: Sort Mode Menu
+
+    @ViewBuilder
+    private var sortModeMenu: some View {
+        Button {
+            setSortMode(.nameAscending)
+        } label: {
+            HStack {
+                Text("按名称排序")
+                if sortMode == .nameAscending {
+                    Image(systemName: "checkmark")
+                }
+            }
+        }
+        Button {
+            setSortMode(.modificationDateDescending)
+        } label: {
+            HStack {
+                Text("按修改时间排序")
+                if sortMode == .modificationDateDescending {
+                    Image(systemName: "checkmark")
+                }
+            }
+        }
+        Button {
+            setSortMode(.kind)
+        } label: {
+            HStack {
+                Text("按类型排序")
+                if sortMode == .kind {
+                    Image(systemName: "checkmark")
+                }
+            }
         }
     }
 
@@ -126,32 +210,27 @@ struct FileWidgetView: View {
         .widgetContentPadding()
     }
 
+    // MARK: Grid View
+
+    private var fileGridView: some View {
+        ScrollView {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 100), spacing: XuloraSpacing.md)],
+                spacing: XuloraSpacing.md
+            ) {
+                ForEach(sortedFileURLs, id: \.self) { url in
+                    FileGridItem(url: url)
+                }
+            }
+            .padding(XuloraSpacing.md)
+        }
+    }
+
+    // MARK: List View
+
     private var fileListView: some View {
-        List(fileURLs, id: \.self) { url in
-            HStack {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                    .resizable()
-                    .frame(width: 20, height: 20)
-
-                Text(url.lastPathComponent)
-                    .lineLimit(1)
-
-                Spacer()
-            }
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) {
-                NSWorkspace.shared.open(url)
-            }
-            .contextMenu {
-                Button("打开") { NSWorkspace.shared.open(url) }
-                Button("在 Finder 中显示") {
-                    NSWorkspace.shared.activateFileViewerSelecting([url])
-                }
-                Divider()
-                Button("移到废纸篓") {
-                    try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
-                }
-            }
+        List(sortedFileURLs, id: \.self) { url in
+            FileListRow(url: url)
         }
         .listStyle(.plain)
     }
@@ -164,6 +243,8 @@ struct FileWidgetView: View {
             from: widgetInstance.configurationData
         ) else { return }
         config = data
+        displayMode = data.displayMode
+        sortMode = data.sortMode
         loadFiles()
         startObserving()
     }
@@ -179,6 +260,25 @@ struct FileWidgetView: View {
             includingPropertiesForKeys: [.contentModificationDateKey],
             options: .skipsHiddenFiles
         )) ?? []
+    }
+
+    private func toggleDisplayMode() {
+        displayMode = displayMode == .grid ? .list : .grid
+        saveConfiguration()
+    }
+
+    private func setSortMode(_ mode: FileSortMode) {
+        sortMode = mode
+        saveConfiguration()
+    }
+
+    private func saveConfiguration() {
+        config.displayMode = displayMode
+        config.sortMode = sortMode
+        if let encoded = try? JSONEncoder().encode(config) {
+            widgetInstance.configurationData = encoded
+        }
+        PersistenceService.shared.save()
     }
 
     private func openBoundFolder() {
@@ -266,6 +366,119 @@ struct FileWidgetView: View {
             }
             destination.stopAccessingSecurityScopedResource()
             loadFiles()
+        }
+    }
+}
+
+// MARK: - Grid Item
+
+private struct FileGridItem: View {
+    let url: URL
+
+    @State private var thumbnail: NSImage?
+
+    private let thumbnailSize = CGSize(width: 128, height: 128)
+
+    var body: some View {
+        VStack(spacing: 4) {
+            // Thumbnail
+            ZStack {
+                if let thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else {
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                }
+            }
+            .frame(height: 80)
+
+            // Filename
+            Text(url.lastPathComponent)
+                .font(XuloraTypography.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: XuloraRadius.item)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            NSWorkspace.shared.open(url)
+        }
+        .contextMenu {
+            fileContextMenu
+        }
+        .task {
+            thumbnail = await generateThumbnail(for: url)
+        }
+    }
+
+    @ViewBuilder
+    private var fileContextMenu: some View {
+        Button("打开") { NSWorkspace.shared.open(url) }
+        Button("在 Finder 中显示") {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        }
+        Divider()
+        Button("移到废纸篓") {
+            try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        }
+    }
+}
+
+// MARK: - List Row
+
+private struct FileListRow: View {
+    let url: URL
+
+    var body: some View {
+        HStack {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                .resizable()
+                .frame(width: 20, height: 20)
+
+            Text(url.lastPathComponent)
+                .lineLimit(1)
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            NSWorkspace.shared.open(url)
+        }
+        .contextMenu {
+            Button("打开") { NSWorkspace.shared.open(url) }
+            Button("在 Finder 中显示") {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+            Divider()
+            Button("移到废纸篓") {
+                try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
+            }
+        }
+    }
+}
+
+// MARK: - Thumbnail Generation
+
+private func generateThumbnail(for url: URL) async -> NSImage? {
+    let request = QLThumbnailGenerator.Request(
+        fileAt: url,
+        size: CGSize(width: 128, height: 128),
+        scale: NSScreen.main?.backingScaleFactor ?? 2.0,
+        representationTypes: .thumbnail
+    )
+
+    return await withCheckedContinuation { continuation in
+        QLThumbnailGenerator.shared.generateRepresentations(for: request) { representation, _, _ in
+            continuation.resume(returning: representation?.nsImage)
         }
     }
 }
