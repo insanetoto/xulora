@@ -19,14 +19,29 @@ final class FileOperationService {
         to destinationDirectory: URL,
         allowReplacement: Bool = false
     ) throws -> URL {
-        let destination = destinationDirectory.appendingPathComponent(source.lastPathComponent)
+        var destination = destinationDirectory.appendingPathComponent(source.lastPathComponent)
 
-        if fileManager.fileExists(atPath: destination.path) && !allowReplacement {
-            throw FileOperationError.fileExists(destination)
+        if fileManager.fileExists(atPath: destination.path) {
+            if allowReplacement {
+                try fileManager.removeItem(at: destination)
+            } else {
+                // Auto-rename: "file" → "file 2", "file 2" → "file 3", etc.
+                let resolvedName = conflictResolver.resolveConflict(
+                    originalName: source.lastPathComponent,
+                    destinationDir: destinationDirectory
+                )
+                destination = destinationDirectory.appendingPathComponent(resolvedName)
+            }
         }
 
-        try fileManager.moveItem(at: source, to: destination)
-        logger.info("Moved: \(source.lastPathComponent) → \(destinationDirectory.path)")
+        do {
+            try fileManager.moveItem(at: source, to: destination)
+        } catch {
+            // Cross-volume move fallback: copy then delete source
+            try fileManager.copyItem(at: source, to: destination)
+            try fileManager.removeItem(at: source)
+        }
+        logger.info("Moved: \(source.lastPathComponent) → \(destination.path)")
         return destination
     }
 
@@ -60,14 +75,18 @@ final class FileOperationService {
     // MARK: Copy
 
     func copyItem(from source: URL, to destinationDirectory: URL) throws -> URL {
-        let destination = destinationDirectory.appendingPathComponent(source.lastPathComponent)
+        var destination = destinationDirectory.appendingPathComponent(source.lastPathComponent)
 
         if fileManager.fileExists(atPath: destination.path) {
-            throw FileOperationError.fileExists(destination)
+            let resolvedName = conflictResolver.resolveConflict(
+                originalName: source.lastPathComponent,
+                destinationDir: destinationDirectory
+            )
+            destination = destinationDirectory.appendingPathComponent(resolvedName)
         }
 
         try fileManager.copyItem(at: source, to: destination)
-        logger.info("Copied: \(source.lastPathComponent) → \(destinationDirectory.path)")
+        logger.info("Copied: \(source.lastPathComponent) → \(destination.path)")
         return destination
     }
 
