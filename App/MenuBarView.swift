@@ -31,6 +31,24 @@ struct MenuBarView: View {
 
             Divider()
 
+            Button("添加时钟") {
+                widgetManager.addClockWidget()
+            }
+
+            Button("添加日历") {
+                widgetManager.addCalendarWidget()
+            }
+
+            Button("添加系统状态") {
+                widgetManager.addSystemStatsWidget()
+            }
+
+            Button("添加应用启动器") {
+                widgetManager.addAppLauncherWidget()
+            }
+
+            Divider()
+
             Toggle("编辑布局", isOn: $isEditingLayout)
                 .onChange(of: isEditingLayout) { _, newValue in
                     layoutController.setEditingMode(newValue, widgetManager: widgetManager)

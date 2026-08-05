@@ -214,6 +214,14 @@ struct WidgetContainerView: View {
                 TodoWidgetView(widgetInstance: widgetInstance)
             case .calculator:
                 CalculatorWidgetView(widgetInstance: widgetInstance)
+            case .clock:
+                ClockWidgetView(widgetInstance: widgetInstance)
+            case .calendar:
+                CalendarWidgetView(widgetInstance: widgetInstance)
+            case .systemStats:
+                SystemStatsWidgetView(widgetInstance: widgetInstance)
+            case .appLauncher:
+                AppLauncherWidgetView(widgetInstance: widgetInstance)
             case .none:
                 EmptyView()
             }

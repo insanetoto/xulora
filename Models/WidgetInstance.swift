@@ -7,6 +7,10 @@ enum WidgetKind: String, Codable, CaseIterable {
     case note = "note"
     case todo = "todo"
     case calculator = "calculator"
+    case clock = "clock"
+    case calendar = "calendar"
+    case systemStats = "systemStats"
+    case appLauncher = "appLauncher"
 }
 
 /// Appearance configuration shared across all widget types.

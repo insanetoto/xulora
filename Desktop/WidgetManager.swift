@@ -61,6 +61,22 @@ final class WidgetManager {
         addWidget(kind: .calculator, title: title, defaultSize: (260, 320))
     }
 
+    func addClockWidget(title: String = "时钟") {
+        addWidget(kind: .clock, title: title, defaultSize: (320, 200))
+    }
+
+    func addCalendarWidget(title: String = "日历") {
+        addWidget(kind: .calendar, title: title, defaultSize: (320, 360))
+    }
+
+    func addSystemStatsWidget(title: String = "系统状态") {
+        addWidget(kind: .systemStats, title: title, defaultSize: (320, 240))
+    }
+
+    func addAppLauncherWidget(title: String = "应用启动器") {
+        addWidget(kind: .appLauncher, title: title, defaultSize: (320, 300))
+    }
+
     // MARK: Management
 
     func deleteWidget(_ id: UUID) {
@@ -160,22 +176,32 @@ final class WidgetManager {
             frame.minX + margin + CGFloat(i) * (colWidth + gap)
         }
 
-        // Row 0 tallest height (File widget = 360)
-        let row0Height: CGFloat = 360
+        // Row heights based on tallest widget in each row
+        let row0Height: CGFloat = 360   // File widget
+        let row1Height: CGFloat = 360   // Calendar widget
+        let row2Height: CGFloat = 300   // AppLauncher
+
         let row0Top = margin
         let row1Top = row0Top + row0Height + gap
+        let row2Top = row1Top + row1Height + gap
 
         // (kind, title, width, height, col, row)
         let placements: [(WidgetKind, String, CGFloat, CGFloat, Int, Int)] = [
-            (.file,       "文件整理", 480, 360, 0, 0),
-            (.note,       "便签",     320, 192, 1, 0),
-            (.todo,       "待办",     350, 236, 2, 0),
-            (.calculator, "计算器",   260, 320, 1, 1),
+            (.file,       "文件整理",   480, 360, 0, 0),
+            (.note,       "便签",       320, 192, 1, 0),
+            (.todo,       "待办",       350, 236, 2, 0),
+            (.calculator, "计算器",     260, 320, 0, 1),
+            (.clock,      "时钟",       320, 200, 1, 1),
+            (.calendar,   "日历",       320, 360, 2, 1),
+            (.systemStats,"系统状态",   320, 240, 0, 2),
+            (.appLauncher,"应用启动器", 320, 300, 1, 2),
         ]
+
+        let rowTops: [Int: CGFloat] = [0: row0Top, 1: row1Top, 2: row2Top]
 
         for (index, (kind, title, width, height, col, row)) in placements.enumerated() {
             let x = colOrigins[col] + (colWidth - width) / 2
-            let topY = row == 0 ? row0Top : row1Top
+            let topY = rowTops[row] ?? row0Top
             let y = frame.maxY - topY - height
 
             do {
